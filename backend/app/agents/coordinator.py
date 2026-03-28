@@ -4,9 +4,28 @@ from app.agents.price_agent import price_agent
 from app.agents.risk_agent import risk_agent
 from app.agents.report_agent import report_agent
 from app.agents.debate_agent import debate_agent
+from app.services.cache_service import CacheService
 
 
 def run_analysis(crypto: str):
+
+    # -----------------------------------
+    # 1. Create unique cache key
+    # -----------------------------------
+    cache_key = f"report:{crypto}"
+
+    # -----------------------------------
+    # 2. Check if data exists in cache
+    # -----------------------------------
+    cached_data = CacheService.get(cache_key)
+
+    if cached_data:
+        print("⚡ Returning data from cache")
+        return cached_data
+
+    # -----------------------------------
+    # 3. If not in cache → run agents
+    # -----------------------------------
 
     news = news_agent(f"Analyze news for {crypto}")
 
@@ -29,7 +48,7 @@ def run_analysis(crypto: str):
 
     critique = debate_agent(report)
 
-    return {
+    result = {
         "news": news,
         "sentiment": sentiment,
         "price": price,
@@ -37,3 +56,10 @@ def run_analysis(crypto: str):
         "report": report,
         "critique": critique
     }
+
+    # -----------------------------------
+    # 4. Store result in cache (TTL = 5 min)
+    # -----------------------------------
+    CacheService.set(cache_key, result, ttl=300)
+
+    return result
