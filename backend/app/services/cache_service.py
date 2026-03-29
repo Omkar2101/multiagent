@@ -1,5 +1,8 @@
 import json
+import logging
 from app.core.cache import redis_client
+
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -12,16 +15,20 @@ class CacheService:
         """
         Fetch data from Redis cache
         """
-
-        data = redis_client.get(key)
-
-        if data:
-            try:
-                return json.loads(data)  # Convert string → dict
-            except:
-                return data
-
-        return None
+        logger.info(f"[Redis] GET {key}")
+        try:
+            data = redis_client.get(key)
+            if data:
+                logger.info(f"[Redis] ✅ Cache HIT for {key}")
+                try:
+                    return json.loads(data)
+                except Exception:
+                    return data
+            logger.info(f"[Redis] Cache MISS for {key}")
+            return None
+        except Exception as e:
+            logger.error(f"[Redis] ❌ GET failed for {key}: {e}")
+            return None
 
 
     # -------------------------------
@@ -31,20 +38,17 @@ class CacheService:
     def set(key: str, value, ttl: int = 300):
         """
         Store data in Redis with expiration time
-
-        key: unique identifier
-        value: any Python object
-        ttl: time in seconds
         """
-
+        logger.info(f"[Redis] SET {key} (ttl={ttl}s)")
         try:
             redis_client.setex(
                 key,
                 ttl,
-                json.dumps(value)  # Convert dict → string
+                json.dumps(value)
             )
+            logger.info(f"[Redis] ✅ Cached {key}")
         except Exception as e:
-            print("Redis SET Error:", e)
+            logger.error(f"[Redis] ❌ SET failed for {key}: {e}")
 
 
     # -------------------------------
@@ -55,6 +59,7 @@ class CacheService:
         """
         Remove cache manually
         """
+        logger.info(f"[Redis] DELETE {key}")
         redis_client.delete(key)
 
 

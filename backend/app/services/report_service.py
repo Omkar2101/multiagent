@@ -1,5 +1,8 @@
-from app.core.db import reports_collection
+import logging
 import datetime
+from app.core.db import reports_collection
+
+logger = logging.getLogger(__name__)
 
 
 class ReportService:
@@ -9,19 +12,23 @@ class ReportService:
         """
         Store analysis result in MongoDB
         """
-
-        document = {
-            "crypto": crypto,
-            "news": result.get("news"),
-            "sentiment": result.get("sentiment"),
-            "price": result.get("price"),
-            "risk": result.get("risk"),
-            "report": result.get("report"),
-            "critique": result.get("critique"),
-            "created_at": datetime.datetime.utcnow()
-        }
-
-        reports_collection.insert_one(document)
+        logger.info(f"[MongoDB] Saving report for {crypto}...")
+        try:
+            document = {
+                "crypto": crypto,
+                "news": result.get("news"),
+                "sentiment": result.get("sentiment"),
+                "price": result.get("price"),
+                "risk": result.get("risk"),
+                "report": result.get("report"),
+                "critique": result.get("critique"),
+                "created_at": datetime.datetime.utcnow()
+            }
+            reports_collection.insert_one(document)
+            logger.info(f"[MongoDB] ✅ Report saved for {crypto}")
+        except Exception as e:
+            logger.error(f"[MongoDB] ❌ Failed to save report for {crypto}: {e}")
+            raise
 
 
     @staticmethod
@@ -30,11 +37,14 @@ class ReportService:
         Fetch all reports for a crypto
         """
 
-        return list(
+        docs = list(
             reports_collection.find(
                 {"crypto": crypto}
             ).sort("created_at", -1)
         )
+        for doc in docs:
+            doc["_id"] = str(doc["_id"])
+        return docs
 
 
     @staticmethod
@@ -43,7 +53,10 @@ class ReportService:
         Get latest report
         """
 
-        return reports_collection.find_one(
+        doc = reports_collection.find_one(
             {"crypto": crypto},
             sort=[("created_at", -1)]
         )
+        if doc:
+            doc["_id"] = str(doc["_id"])
+        return doc
